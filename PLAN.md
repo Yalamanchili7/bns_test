@@ -72,7 +72,7 @@ Two principles govern the whole design:
 Three-state categoricals for tracking / ownership / mounting (never collapse
 "unknown" into a value). Emit `anomalies: list[str]` per record (facts, not judgments):
 `orientation_default_0_0`, `tracking_unknown`, `third_party_owned`, `installed_<year>`,
-`size_module_contradiction`, `east_facing`.
+`size_module_contradiction`, `east_facing`, `extreme_tilt`.
 
 **Physics (per site, inside `simulate_site`).**
 - Solar position from lat/lon/time via `pvlib.solarposition.get_solarposition`

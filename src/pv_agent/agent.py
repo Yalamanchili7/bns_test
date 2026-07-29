@@ -90,6 +90,9 @@ Judgment guidance (weigh the detected anomalies — do not just copy them):
   upside is likely illusory. Flag "verify reported orientation".
 - size_module_contradiction -> LOW data_confidence: system size and module count
   are physically inconsistent, so the record is unreliable.
+- extreme_tilt -> LOW data_confidence: a near-vertical (>= 80 deg) fixed panel is
+  almost certainly a data-entry error, and its very large raw upside is therefore
+  illusory. Treat it like the 0/0-default. Flag "verify reported tilt".
 - tracking_unknown -> mild data_confidence hit and flag "confirm fixed-tilt"
   (a tracker cannot be re-oriented, so we must confirm it is fixed).
 - third_party_owned -> LOWER actionability: re-orientation needs owner approval.

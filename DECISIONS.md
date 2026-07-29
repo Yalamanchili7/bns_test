@@ -137,11 +137,12 @@ zeros; only ~30% of records have the orientation (az+tilt+zip) needed to simulat
 
 ## Known edge cases / limitations
 
-- **Extreme tilt (e.g. 90 vertical panels)** currently pass as valid and can
-  produce very large upside (a vertical panel is far from optimal). The agent trusts
-  an internally-consistent record but correctly flags it for verification. A future
-  `extreme_tilt` anomaly (tilt >= ~80) would lower confidence, since such tilts are
-  often data or installation oddities on fixed systems. Noted, not yet built.
+- **Extreme tilt (e.g. 90 vertical panels)** are detected as an `extreme_tilt`
+  anomaly (tilt >= 80) in cleaning, and the agent weighs them down like the
+  0/0-default: a near-vertical fixed panel is almost certainly a data error, and
+  its very large re-orientation upside is therefore illusory. (Without this, the
+  single 90-tilt record in the sample ranked #1 with high confidence — its huge
+  upside taken at face value.)
 - **Re-simulation in `run.py`** — judged candidates are simulated again when
   building scorecards rather than threading the agent's tool results out. This is
   near-free because physics caches solar position per location; a production version
@@ -154,8 +155,7 @@ zeros; only ~30% of records have the orientation (az+tilt+zip) needed to simulat
 
 1. **Real production data** — replace clear-sky with actual weather/irradiance and,
    where available, metered generation, to move from a *prioritization* to a
-   defensible *quantified* upside. Add shading/soiling checks and an `extreme_tilt`
-   anomaly.
+   defensible *quantified* upside. Add shading/soiling checks.
 2. **Cost-adjusted actionability** — the true decision is net value: energy gain
    minus re-orientation cost and downtime. Add a cost model so the ranking reflects
    ROI, not just the gross prize.

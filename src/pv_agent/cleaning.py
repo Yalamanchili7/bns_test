@@ -27,6 +27,10 @@ REFERENCE_YEAR = datetime.now().year
 # mentions -9999. Both are treated as missing.
 _SENTINELS = {-1.0, -9999.0}
 
+# Tilt at or above this (degrees) is a near-vertical panel — beyond any sensible
+# US fixed-tilt optimum, so almost certainly a data-entry error.
+_EXTREME_TILT_DEGREES = 80.0
+
 # Raw CSV column names (note the exact casing/suffixes in the source file).
 _COL_SYSTEM_ID = "system_ID"
 _COL_STATE = "state"
@@ -141,6 +145,13 @@ def detect_anomalies(record: SiteRecord) -> list[str]:
     # morning-load), not penalized — the agent decides.
     if record.azimuth is not None and 70 <= record.azimuth <= 110:
         anomalies.append("east_facing")
+
+    # Extreme tilt: a near-vertical fixed panel. Optimal US tilt never exceeds
+    # ~60 (see physics grid), so tilt >= 80 is almost certainly a data-entry
+    # error — and it produces a huge, illusory re-orientation upside. Detected as
+    # a fact; the agent weighs it down like the 0/0-default.
+    if record.tilt is not None and record.tilt >= _EXTREME_TILT_DEGREES:
+        anomalies.append("extreme_tilt")
 
     if record.tracking == "Unknown":
         anomalies.append("tracking_unknown")

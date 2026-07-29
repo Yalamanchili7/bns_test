@@ -34,16 +34,27 @@ load_dotenv()
 _LOW_CONFIDENCE = 0.3
 
 
+# The four trust-boundary tools. The trace counts only these, so the internal
+# output-submission tool pydantic-ai adds (``final_result``) does not appear.
+_TRUST_BOUNDARY_TOOLS = frozenset(
+    {"get_dataset_summary", "shortlist_candidates", "get_site_details", "simulate_site"}
+)
+
+
 def _tool_call_trace(result) -> dict[str, int]:
-    """Count tool calls the agent made, keyed by tool name.
+    """Count the agent's trust-boundary tool calls, keyed by tool name.
 
     Reads the run's message history: every ``ToolCallPart`` (``part_kind ==
-    'tool-call'``) is one call the model issued through the trust boundary.
+    'tool-call'``) is one call the model issued. We restrict to the four
+    registered tools so pydantic-ai's internal output tool is not counted.
     """
     counts: Counter[str] = Counter()
     for message in result.all_messages():
         for part in getattr(message, "parts", []):
-            if getattr(part, "part_kind", None) == "tool-call":
+            if (
+                getattr(part, "part_kind", None) == "tool-call"
+                and part.tool_name in _TRUST_BOUNDARY_TOOLS
+            ):
                 counts[part.tool_name] += 1
     return dict(counts)
 

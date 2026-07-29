@@ -167,3 +167,13 @@ def test_old_install_detected():
     old_year = REFERENCE_YEAR - 20
     record = clean_record(raw(installation_date=f"{old_year}-01-01"))
     assert "old_install" in record.anomalies
+
+
+def test_extreme_tilt_detected():
+    """A near-vertical panel (tilt >= 80) is flagged extreme_tilt."""
+    assert "extreme_tilt" in clean_record(raw(tilt_1="90.0")).anomalies
+
+
+def test_normal_tilt_no_extreme_flag():
+    """A normal tilt is not flagged extreme_tilt."""
+    assert "extreme_tilt" not in clean_record(raw(tilt_1="30.0")).anomalies
