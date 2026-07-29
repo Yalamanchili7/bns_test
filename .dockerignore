@@ -1,0 +1,13 @@
+# Local virtualenv — the image does its own clean install.
+.venv/
+
+# Python caches and compiled files.
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Git history — not needed inside the image.
+.git/
+
+# Never copy the real API key into the image (passed at runtime instead).
+.env
