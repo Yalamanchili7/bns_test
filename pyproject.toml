@@ -1,0 +1,26 @@
+[project]
+name = "pv-agent"
+version = "0.1.0"
+description = "PV re-orientation prioritization agent — ranks solar sites worth human review for panel re-orientation"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=3.0.5",
+    "pgeocode>=0.5.0",
+    "pvlib>=0.15.2",
+    "pydantic>=2.13.4",
+    "pydantic-ai>=2.19.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = "src"
