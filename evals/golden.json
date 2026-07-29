@@ -1,0 +1,45 @@
+[
+  {
+    "system_id": "SITE_00975",
+    "case_type": "orientation_default_0_0_trap",
+    "expected_confidence_min": 0.0,
+    "expected_confidence_max": 0.3,
+    "expected_actionability_min": 0.0,
+    "expected_actionability_max": 1.0,
+    "required_flag_substring": "orient"
+  },
+  {
+    "system_id": "SITE_00901",
+    "case_type": "clean_record",
+    "expected_confidence_min": 0.7,
+    "expected_confidence_max": 1.0,
+    "expected_actionability_min": 0.0,
+    "expected_actionability_max": 1.0
+  },
+  {
+    "system_id": "SITE_03988",
+    "case_type": "tracking_unknown",
+    "expected_confidence_min": 0.4,
+    "expected_confidence_max": 0.85,
+    "expected_actionability_min": 0.0,
+    "expected_actionability_max": 1.0,
+    "required_flag_substring": ["fixed", "tracking"]
+  },
+  {
+    "system_id": "SITE_00912",
+    "case_type": "third_party_owned",
+    "expected_confidence_min": 0.0,
+    "expected_confidence_max": 1.0,
+    "expected_actionability_min": 0.0,
+    "expected_actionability_max": 0.6
+  },
+  {
+    "system_id": "SITE_00689",
+    "case_type": "east_facing",
+    "expected_confidence_min": 0.4,
+    "expected_confidence_max": 1.0,
+    "expected_actionability_min": 0.0,
+    "expected_actionability_max": 1.0,
+    "required_flag_substring": "east"
+  }
+]
