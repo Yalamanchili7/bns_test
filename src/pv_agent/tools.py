@@ -184,7 +184,7 @@ class Dataset:
         }
 
     def shortlist_candidates(
-        self, limit: int = 30, include_suspicious: int = 3
+        self, limit: int = 15, include_suspicious: int = 3
     ) -> list[dict]:
         """Top eligible sites by misalignment, split into two buckets.
 

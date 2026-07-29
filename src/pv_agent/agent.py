@@ -114,6 +114,10 @@ agent = Agent(
     deps_type=Dataset,
     output_type=list[CandidateJudgment],
     instructions=_SYSTEM_PROMPT,
+    # temperature=0 for the most reproducible judgments the model allows. It does
+    # not make an LLM bit-for-bit deterministic, but it removes sampling variance
+    # so repeated runs land in the same bands (and usually the same ranking).
+    model_settings={"temperature": 0.0},
     defer_model_check=True,
 )
 
@@ -188,6 +192,7 @@ summary_agent = Agent(
         "at first and what to watch for. Be concrete and reference the specific "
         "reasons/flags. Do not invent numbers; use only what you are given."
     ),
+    model_settings={"temperature": 0.0},
     defer_model_check=True,
 )
 

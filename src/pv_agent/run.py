@@ -48,6 +48,43 @@ def _tool_call_trace(result) -> dict[str, int]:
     return dict(counts)
 
 
+def _reconcile_judgments(judgments, expected_ids: set[str]) -> tuple[list, dict]:
+    """Validate the agent's returned judgments against the requested shortlist.
+
+    The shortlist is deterministic, so we know exactly which ids the agent was
+    asked to judge. We do not blindly trust its output: a dropped, duplicated, or
+    hallucinated id would otherwise propagate silently into the ranking.
+
+    Returns ``(reconciled, report)`` where ``reconciled`` is the deduped judgments
+    whose ids are in the shortlist (first occurrence wins), and ``report`` records
+    what was ``dropped`` (requested but not judged), ``unexpected`` (judged but not
+    requested — hallucinated / off-list), and ``duplicated``.
+    """
+    seen: set[str] = set()
+    reconciled = []
+    unexpected: list[str] = []
+    duplicated: list[str] = []
+    for j in judgments:
+        if j.system_id in seen:
+            duplicated.append(j.system_id)
+            continue
+        seen.add(j.system_id)
+        if j.system_id in expected_ids:
+            reconciled.append(j)
+        else:
+            unexpected.append(j.system_id)
+
+    dropped = sorted(expected_ids - seen)
+    report = {
+        "requested": len(expected_ids),
+        "judged": len(reconciled),
+        "dropped": dropped,
+        "unexpected": sorted(unexpected),
+        "duplicated": sorted(set(duplicated)),
+    }
+    return reconciled, report
+
+
 def _build_scorecards(judgments, dataset: Dataset, cfg: ScoringConfig) -> list[Scorecard]:
     """Simulate each judged candidate and assemble its full Scorecard.
 
@@ -73,22 +110,36 @@ def _build_scorecards(judgments, dataset: Dataset, cfg: ScoringConfig) -> list[S
     return scorecards
 
 
-def _find_pushed_down(ranked: list[Scorecard]) -> dict | None:
+def _find_pushed_down(ranked: list[Scorecard], suspicious_ids: set[str]) -> dict | None:
     """Find the clearest "high raw upside, low final score" example.
 
-    Among scorecards with low data-confidence (the suspicious-default traps),
-    pick the one with the largest raw energy upside — the site whose big raw
-    number was deliberately sunk by the trust factor. Returns its details and
-    rank, or None if no such trap surfaced.
+    Required output #2 must not silently vanish, so we resolve it in two tiers:
+
+    1. **Ideal** — among scorecards the agent judged low-confidence
+       (``<= _LOW_CONFIDENCE``), take the largest raw upside: a big number the
+       trust factor deliberately sank.
+    2. **Fallback** — if the agent did not score any trap that low, fall back to
+       the highest-upside *suspicious-default* (0/0) site it judged. Still an
+       agent-judged card (we do not fabricate the demonstration), just without
+       the confidence cliff that previously returned ``None``.
+
+    Returns the chosen card, its rank, the total, and which tier fired — or
+    ``None`` only if no suspicious-default candidate was judged at all.
     """
-    traps = [c for c in ranked if c.data_confidence.score <= _LOW_CONFIDENCE]
-    if not traps:
-        return None
-    trap = max(traps, key=lambda c: c.energy_upside)
+    low_conf = [c for c in ranked if c.data_confidence.score <= _LOW_CONFIDENCE]
+    if low_conf:
+        trap, method = max(low_conf, key=lambda c: c.energy_upside), "low_confidence"
+    else:
+        suspicious = [c for c in ranked if c.system_id in suspicious_ids]
+        if not suspicious:
+            return None
+        trap = max(suspicious, key=lambda c: c.energy_upside)
+        method = "suspicious_default_fallback"
     return {
         "scorecard": trap,
         "rank": ranked.index(trap) + 1,
         "total": len(ranked),
+        "method": method,
     }
 
 
@@ -120,15 +171,23 @@ def run_pipeline(
     """
     cfg = ScoringConfig()
 
+    # The shortlist is deterministic, so compute the expected id set here to
+    # reconcile the agent's output against, and to know which ids are the
+    # suspicious 0/0-default traps (for the guaranteed pushed-down example).
+    shortlist = dataset.shortlist_candidates(shortlist_size)
+    expected_ids = {c["system_id"] for c in shortlist}
+    suspicious_ids = {c["system_id"] for c in shortlist if c["is_suspicious_default"]}
+
     result = run_agent(dataset, shortlist_size)
-    judgments = result.output
     trace = _tool_call_trace(result)
+
+    judgments, reconciliation = _reconcile_judgments(result.output, expected_ids)
 
     scorecards = _build_scorecards(judgments, dataset, cfg)
     ranked = sorted(scorecards, key=lambda c: c.final_score, reverse=True)
     top5 = ranked[:5]
 
-    pushed_down = _find_pushed_down(ranked)
+    pushed_down = _find_pushed_down(ranked, suspicious_ids)
 
     if make_summary and top5:
         summary = summarize_top_sites(_format_top_brief(top5[:3]))
@@ -140,6 +199,7 @@ def run_pipeline(
         "pushed_down_example": pushed_down,
         "summary": summary,
         "trace": trace,
+        "reconciliation": reconciliation,
         "all_scorecards": ranked,
     }
 
@@ -170,7 +230,7 @@ def _print_report(results: dict) -> None:
     print("=" * 72)
     pd = results["pushed_down_example"]
     if pd is None:
-        print("  (no low-confidence high-upside trap surfaced in this run)\n")
+        print("  (no suspicious-default candidate was judged in this run)\n")
     else:
         c = pd["scorecard"]
         print(
@@ -178,7 +238,13 @@ def _print_report(results: dict) -> None:
             f"upside but final score {c.final_score:.3f} due to low confidence "
             f"({c.data_confidence.score:.2f}) — ranked #{pd['rank']} of {pd['total']}."
         )
-        print(f"  Why: {c.data_confidence.reason}\n")
+        print(f"  Why: {c.data_confidence.reason}")
+        if pd["method"] == "suspicious_default_fallback":
+            print(
+                "  (fallback: no judged trap fell below the confidence threshold; "
+                "showing the highest-upside 0/0-default the agent judged.)"
+            )
+        print()
 
     print("=" * 72)
     print("REVIEWER SUMMARY (agent-written)")
@@ -193,6 +259,18 @@ def _print_report(results: dict) -> None:
         print("  " + ", ".join(f"{name}: {n}" for name, n in sorted(trace.items())))
     else:
         print("  (no tool calls recorded)")
+    print()
+
+    print("=" * 72)
+    print("SHORTLIST RECONCILIATION")
+    print("=" * 72)
+    rec = results["reconciliation"]
+    print(f"  requested {rec['requested']} shortlisted, judged {rec['judged']}.")
+    for label in ("dropped", "unexpected", "duplicated"):
+        if rec[label]:
+            print(f"  {label}: {', '.join(rec[label])}")
+    if not (rec["dropped"] or rec["unexpected"] or rec["duplicated"]):
+        print("  clean: agent judged exactly the requested shortlist.")
     print()
 
 

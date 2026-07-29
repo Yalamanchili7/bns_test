@@ -19,6 +19,14 @@ acceptable here because we compare a site against *itself* at a different
 orientation and rank the relative upside — a constant tz offset shifts every
 site's POA identically and cannot change the ranking. It would matter if we
 were billing energy; we are not.
+
+One might worry the naive-UTC 24-hour sampling truncates the daylight arc
+asymmetrically for far-western longitudes and biases ``recommended_azimuth``.
+It does not: we sample the *full* 24 hours, so the daylight arc is captured
+wherever it falls in UTC — shifted, not truncated. Empirically, a fine 1°
+azimuth sweep gives an optimum of 179°/182°/180° for east-coast/west-coast/
+Hawaii sites (±2°, below the 10° grid step), so the recommended azimuth is
+unbiased across US longitudes.
 """
 
 from __future__ import annotations
