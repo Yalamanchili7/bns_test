@@ -23,15 +23,16 @@ The dataset is the LBNL "Tracking the Sun" sample. Profiling revealed several
 things the brief does not state:
 
 - **Missing-value sentinel is `-1`, not `-9999`** as the brief claims. Both are handled.
-- **~42% of zip codes have stripped leading zeros** (`5647` should be `05647`);
-  they must be zero-padded before geocoding or they mislocate.
-- **Only ~3,200 of 10,000 records have azimuth + tilt + zip all present** — this is
-  the simulatable candidate pool; the rest cannot be evaluated for re-orientation.
+- **~15% of zip codes (1,461 of 10,000) have stripped leading zeros** (`5647`
+  should be `05647`); they must be zero-padded before geocoding or they mislocate.
+- **~2,960 of 10,000 records have azimuth + tilt + zip all present** (~2,760 after
+  excluding trackers) — this is the simulatable candidate pool; the rest cannot be
+  evaluated for re-orientation.
 - **391 records have azimuth = 0 AND tilt = 0** — almost certainly a data-entry
   default, not a real north-flat array. These produce the largest *raw* upside and
   are the planted "high upside, low trust" trap. This is our required
   "high raw upside pushed down" example.
-- Trackers (~200 in pool) cannot be re-oriented → excluded. ~1,100 have unknown
+- Trackers (~200 in pool) cannot be re-oriented → excluded. ~850 have unknown
   tracking → simulated but flagged.
 - Actionability signals (ownership, mounting) are largely unknown → judged under
   partial information, with flags rather than confident wrong answers.
@@ -49,16 +50,16 @@ DETERMINISTIC LAYER (code, testable): data · cleaning · physics · scoring
 Two principles govern the whole design:
 - **Code detects, the agent weighs.** Code reports facts (az=0, tracking unknown);
   the agent interprets them into a judged score with a reason.
-- **Cost rises as volume falls.** Cheap filters over 10k → physics on ~30 →
+- **Cost rises as volume falls.** Cheap filters over 10k → physics on ~15 →
   LLM judgment on the finalists. The expensive model never touches the full dataset.
 
 ## Pipeline (end to end)
 
 ```
 1. get_dataset_summary()        → agent orients itself (counts, missingness); no rows
-2. eligibility filter (all 10k) → ~3,000 with valid az+tilt+zip, non-tracker   [code]
-3. shortlist_candidates(30)     → cheap misalignment heuristic, no physics      [code]
-4. simulate_site(id) × ~30      → grid-search optimization → raw upside          [code]
+2. eligibility filter (all 10k) → ~2,760 with valid az+tilt+zip, non-tracker   [code]
+3. shortlist_candidates(15)     → cheap misalignment heuristic, no physics      [code]
+4. simulate_site(id) × ~15      → grid-search optimization → raw upside          [code]
 5. get_site_details(ids)        → cleaned fields + detected anomalies (evidence)
 6. agent judges each            → data_confidence, actionability, flags (+reasons)
 7. scoring                      → normalize + final_score → rank → top 5         [code]
@@ -96,8 +97,8 @@ Three-state categoricals for tracking / ownership / mounting (never collapse
 **Pre-filter heuristic (cheap, over all eligible).**
 `misalignment = |azimuth − 180|/180 + |tilt − latitude_est|/90`, a monotone proxy
 for upside. Uses a state→latitude estimate so no geocoding is needed at this stage;
-precise geocoding is deferred to the ~30 shortlisted sites. Shortlist = top 30
-(6× the output size, so the heuristic's imperfection can't drop real winners).
+precise geocoding is deferred to the ~15 shortlisted sites. Shortlist = top 15
+(3× the output size, so the heuristic's imperfection can't drop real winners).
 
 **Scoring.**
 - Normalize upside with a **fixed cap** (0.30 → 1.0), not min-max: stable across
@@ -128,7 +129,7 @@ The agent never computes `final_score` — that arithmetic is code.
 | Tool | Returns | Bound |
 |------|---------|-------|
 | `get_dataset_summary()` | aggregate counts/missingness | no rows |
-| `shortlist_candidates(limit=30)` | top-N by heuristic | ≤50 |
+| `shortlist_candidates(limit=15)` | top-N by heuristic (2 buckets) | ≤50 |
 | `get_site_details(ids)` | cleaned fields + anomalies | ≤50 |
 | `simulate_site(id)` | POA / upside / recommended orientation | 1 site |
 
@@ -153,7 +154,7 @@ deterministic tests + agent eval.
 
 ## Packaging & hygiene
 
-Python 3.10+, `uv` (pyproject.toml + uv.lock, pinned deps), sane `src/` module
+Python 3.11+, `uv` (pyproject.toml + uv.lock, pinned deps), sane `src/` module
 layout, one documented entrypoint for pipeline / tests / evals. Dockerfile if time
 permits (API key via env var). Incremental commits throughout.
 

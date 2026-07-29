@@ -3,7 +3,7 @@ name = "pv-agent"
 version = "0.1.0"
 description = "PV re-orientation prioritization agent — ranks solar sites worth human review for panel re-orientation"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "pandas>=3.0.5",
     "pgeocode>=0.5.0",

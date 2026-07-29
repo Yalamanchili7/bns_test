@@ -120,8 +120,8 @@ intent. Flagged here explicitly rather than left to be discovered.
 ## Missing / ambiguous data
 
 Profiling the file (not the brief) drove this. The sentinel is `-1`, not the
-`-9999` the brief states; ~42% of zips have stripped leading zeros; only ~1/3 of
-records have the orientation needed to simulate at all.
+`-9999` the brief states; ~15% of zips (1,461 of 10,000) have stripped leading
+zeros; only ~30% of records have the orientation (az+tilt+zip) needed to simulate.
 
 - **Missing orientation** -> record is not a candidate (nothing to evaluate);
   excluded from the pool rather than guessed.
@@ -129,7 +129,7 @@ records have the orientation needed to simulate at all.
   never collapsed into a value. It lowers confidence/actionability and raises a flag
   rather than producing a confident wrong answer.
 - **Stripped-leading-zero zips** (`5647` -> `05647`) are padded in cleaning before
-  geocoding, or ~42% of records (heavily New England) would fail to geocode.
+  geocoding, or ~15% of records (heavily New England) would fail to geocode.
 - **The 0/0-default pattern** -> detected in code, judged low-confidence by the
   agent, and flagged. It is the required "high raw upside pushed down" case.
 - **East-facing arrays** -> flagged as possibly intentional (morning load), **not**
